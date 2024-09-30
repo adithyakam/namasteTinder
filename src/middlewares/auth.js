@@ -1,23 +1,27 @@
-const isAuthenticated = (req, res, next) => {
-  let token = "abc";
-  if (token !== "abc") {
-    res.status(401).send("Not authorized");
-  } else {
-    next();
-  }
-};
+const jwt = require("jsonwebtoken");
+const { UserModel } = require("../models/user");
+const isAuthenticated = async (req, res, next) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      throw new Error("Session expired");
+    }
 
-const isAdmin = (req, res, next) => {
-  let isAdmin = true;
+    const decodeToken = await jwt.verify(token, "DevTinder");
+    const { _id } = decodeToken;
+    const user = await UserModel.findById(_id);
+    console.log(_id, user);
 
-  if (!isAdmin) {
-    res.status(401).send("Not Admin");
-  } else {
+    if (!user) {
+      throw new Error("User not found");
+    }
+    req.user = user;
     next();
+  } catch (err) {
+    res.status(400).send("Error:" + err);
   }
 };
 
 module.exports = {
   isAuthenticated,
-  isAdmin,
 };

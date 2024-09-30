@@ -3,17 +3,70 @@ const { isAuthenticated, isAdmin } = require("./middlewares/auth");
 const { connectToDB } = require("./database/database");
 const { UserModel } = require("./models/user");
 const app = express();
+const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.post("/signup", async (req, res) => {
+  let {
+    firstName,
+    lastName,
+    gender,
+    age,
+    emailId,
+    password,
+    photoUrl,
+    skills,
+  } = req.body;
+
   try {
-    const user = new UserModel(req.body);
+    const encryptedPwd = await bcrypt.hash(password, 10);
+    const user = new UserModel({
+      firstName,
+      lastName,
+      gender,
+      age,
+      emailId,
+      photoUrl,
+      skills,
+      password: encryptedPwd,
+    });
     await user.save();
 
     res.send("user added successfully");
   } catch (error) {
     res.status(400).send(error + "Something went wrong while creating user");
+  }
+});
+app.post("/login", async (req, res) => {
+  const { emailId, password } = req.body;
+
+  try {
+    const user = await UserModel.findOne({ emailId });
+
+    if (!user) {
+      return res.status(400).send("Invalid credentials");
+    }
+
+    // Assuming checkPwd compares the input password with the stored hash
+    const isPwdValid = await user.checkPwd(password);
+
+    if (isPwdValid) {
+      // Assuming getJWT is a method on the user instance that generates a token
+      const token = await user.getJWT();
+      console.log(token, "1");
+      res.cookie("token", token, { maxAge: 3600 * 1000, httpOnly: true });
+      return res.send("Login Successful");
+    } else {
+      return res.status(400).send("Invalid credentials");
+    }
+  } catch (err) {
+    return res
+      .status(500)
+      .send("An error occurred during login: " + err.message);
   }
 });
 
@@ -29,50 +82,11 @@ app.post("/user", async (req, res) => {
   }
 });
 
-app.get("/feed", async (req, res) => {
+app.get("/profile", isAuthenticated, async (req, res) => {
   try {
-    let users = await UserModel.find({});
-    res.send(users);
+    res.send(req.user);
   } catch (error) {
-    res.status(400).send(error + "Something went wrong");
-  }
-});
-
-app.delete("/user", async (req, res) => {
-  const userId = req.body.userId;
-  try {
-    let user = await UserModel.findByIdAndDelete(userId);
-    res.send("User deleted Succeesfully");
-  } catch (error) {
-    res.status(400).send(error + "Something went wrong");
-  }
-});
-
-app.patch("/user/:userId", async (req, res) => {
-  const userId = req.params?.userId;
-  const data = req.body;
-
-  if (data.skills.length > 10) {
-    throw new Error("Skills cant be more than 10");
-  }
-
-  const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
-
-  try {
-    const isUpdateAllowed = Object.keys(data).every((k) =>
-      ALLOWED_UPDATES.includes(k)
-    );
-
-    if (!isUpdateAllowed) {
-      throw new Error("Updates not allowed");
-    }
-
-    let user = await UserModel.findByIdAndUpdate({ _id: userId }, data, {
-      runValidators: true,
-    });
-    res.send("User updated successfully");
-  } catch (error) {
-    res.status(400).send(error + " Something went wrong");
+    res.status(400).send("Please login again, session expireds");
   }
 });
 
