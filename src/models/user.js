@@ -80,7 +80,6 @@ userSchema.methods.getJWT = async function () {
       "DevTinder",
       { expiresIn: "1d" }
     );
-    console.log(token, "2");
     return token;
   } catch (error) {
     throw new Error(error);

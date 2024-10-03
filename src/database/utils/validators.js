@@ -25,3 +25,25 @@ const signUpValidations = (props) => {
     throw new Error("Invalid email");
   }
 };
+
+const validateUserData = (props) => {
+  const allowedFields = [
+    "firstName",
+    "lastName",
+    "photoUrl",
+    "skills",
+    "gender",
+    "age",
+  ];
+
+  const isAllowed = Object.keys(props.body).every((field) =>
+    allowedFields.includes(field)
+  );
+
+  return isAllowed;
+};
+
+module.exports = {
+  signUpValidations,
+  validateUserData,
+};
