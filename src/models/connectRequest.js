@@ -5,11 +5,13 @@ const conRqtSchema = new moongoose.Schema(
   {
     fromUserId: {
       type: moongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
     toUserId: {
       type: moongoose.Schema.Types.ObjectId,
       required: true,
+      ref: "User",
     },
     status: {
       type: String,
@@ -25,13 +27,19 @@ const conRqtSchema = new moongoose.Schema(
   }
 );
 
-conRqtSchema.pre("save", function () {
-  const connrqt = this;
+conRqtSchema.index({ fromUserId: 1, toUserId: 1 });
 
-  if (connrqt.fromUserId.equals(connrqt.toUserId)) {
-    throw new Error("cant sent connect request to self");
+conRqtSchema.pre("save", async function (next) {
+  try {
+    const connrqt = this;
+
+    if (connrqt.fromUserId.equals(connrqt.toUserId)) {
+      throw new Error("cant sent connect request to self");
+    }
+    next();
+  } catch (error) {
+    throw new Error("error in saving try in sometime");
   }
-  next();
 });
 
 const conRqtModel = new moongoose.model("requests", conRqtSchema);

@@ -14,48 +14,88 @@ requestRouter.post(
       const fromUserId = req.user._id;
       const { toUserId, status } = req.params;
 
+      // Validate status
       const allowedStatus = ["ignore", "intrested", "accepted", "rejected"];
-
       if (!allowedStatus.includes(status)) {
-        new Error("Status not Allowed");
+        return res.status(400).json({ message: "Invalid status provided" });
       }
 
-      const validToUser = await mongoose.Types.ObjectId.isValid(toUserId);
-
-      if (!validToUser) {
-        return res.status(404).json({ message: "User not valid" });
+      // Validate toUserId
+      if (!mongoose.Types.ObjectId.isValid(toUserId)) {
+        return res.status(400).json({ message: "Invalid toUserId provided" });
       }
 
-      const containsDuplicate = await conRqtModel.findOne({
+      // Check for duplicate connection requests
+      const existingConnection = await conRqtModel.findOne({
         $or: [
           { fromUserId, toUserId },
-          {
-            fromUserId: toUserId,
-            toUserId: fromUserId,
-          },
+          { fromUserId: toUserId, toUserId: fromUserId },
         ],
       });
 
-      if (containsDuplicate) {
-        return res.status(400).send({
-          message: "Connection already present ",
-        });
+      if (existingConnection) {
+        return res
+          .status(400)
+          .json({ message: "Connection request already exists" });
       }
 
-      const conrqt = new conRqtModel({
-        fromUserId: fromUserId,
-        toUserId: toUserId,
-        status: status,
+      // Create and save a new connection request
+      const connectionRequest = new conRqtModel({
+        fromUserId,
+        toUserId,
+        status,
       });
 
-      const data = await conrqt.save();
+      const savedRequest = await connectionRequest.save();
 
-      res.json({
-        message: "Connection Request Sent succesfully",
-        data,
+      // Respond with success
+      res.status(201).json({
+        message: "Connection request sent successfully",
+        data: savedRequest,
       });
     } catch (err) {
-      res.status(400).send("Error" + err.message);
+      console.error("Error in /request/send:", err); // Log the error for debugging
+      res
+        .status(500)
+        .json({ message: "An error occurred. Please try again later." });
+    }
+  }
+);
+
+requestRouter.post(
+  "/request/review/:status/:requestId",
+  isAuthenticated,
+  async (req, res) => {
+    try {
+      const loggedInUser = req.user;
+      const allowedStatus = ["rejected", "accepted"];
+      const { status, requestId } = req.params;
+
+      if (!allowedStatus.includes(status)) {
+        return res.status(400).json({ message: "Invalid status provided." });
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(requestId)) {
+        return res.status(400).json({ message: "Invalid requestId format." });
+      }
+
+      const connectionRqt = await conRqtModel.findOneAndUpdate(
+        {
+          _id: requestId,
+          toUserId: loggedInUser._id,
+          status: "intrested",
+        },
+        { status: status },
+        { new: true }
+      );
+
+      if (connectionRqt === null) {
+        return res.status(400).json({ message: "Not found request" });
+      }
+
+      res.json({ message: `Connection request ${status}.`, connectionRqt });
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
     }
   }
 );
