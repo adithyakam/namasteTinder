@@ -15,7 +15,7 @@ requestRouter.post(
       const { toUserId, status } = req.params;
 
       // Validate status
-      const allowedStatus = ["ignore", "intrested", "accepted", "rejected"];
+      const allowedStatus = ["ignored", "intrested", "accepted", "rejected"];
       if (!allowedStatus.includes(status)) {
         return res.status(400).json({ message: "Invalid status provided" });
       }
@@ -68,7 +68,7 @@ requestRouter.post(
   async (req, res) => {
     try {
       const loggedInUser = req.user;
-      const allowedStatus = ["rejected", "accepted"];
+      const allowedStatus = ["rejected", "accepted", "ignored"];
       const { status, requestId } = req.params;
 
       if (!allowedStatus.includes(status)) {

@@ -1,12 +1,18 @@
 const express = require("express");
 const { isAuthenticated, isAdmin } = require("./middlewares/auth");
 const { connectToDB } = require("./database/database");
-
+const cors = require("cors");
 const app = express();
 const cookieParser = require("cookie-parser");
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 
 const authRouter = require("../src/routes/auth");
 const profileRouter = require("../src/routes/profile");
